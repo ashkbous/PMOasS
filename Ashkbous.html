@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پرسشنامه سازمانی</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Vazirmatn', sans-serif;
+        }
+        .visible { display: flex; }
+        .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .question-nav-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item:hover { transform: scale(1.1); }
+        .status-unanswered { background-color: #ffffff; color: #374151; border: 1px solid #d1d5db; }
+        .status-answered { background-color: #bbf7d0; color: #15803d; }
+        .status-current { background-color: #bfdbfe; color: #1d4ed8; border: 2px solid #1d4ed8; }
+        .option-selected { 
+            background-color: #16a34a !important; 
+            color: white !important; 
+            transform: scale(1.05); 
+            font-style: italic; 
+            font-weight: bold; 
+            opacity: 1; 
+        }
+        .option-dimmed { opacity: 0.4; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <div id="app-container" class="min-h-screen flex items-center justify-center p-4">
+
+        <!-- 1. Language Selection -->
+        <div id="language-selection-screen" class="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl text-center fade-in visible flex-col items-center">
+            <h1 class="text-2xl font-bold mb-2">زبان را انتخاب کنید</h1>
+            <h2 class="text-xl font-bold mb-6">Select Your Language</h2>
+            <div class="flex justify-center gap-4">
+                <button onclick="app.selectLanguage('fa')" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105">فارسی</button>
+                <button onclick="app.selectLanguage('en')" class="px-8 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-transform transform hover:scale-105">English</button>
+            </div>
+        </div>
+
+        <!-- 2. Banner Screen -->
+        <div id="banner-screen" class="w-full max-w-lg bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl text-center fade-in hidden flex-col items-center">
+            <div id="banner-content" class="mb-8"></div>
+            <div class="flex justify-center w-full">
+                <button id="start-quiz-btn" onclick="app.startQuiz()" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"></button>
+            </div>
+        </div>
+
+        <!-- 3. Quiz Screen -->
+        <div id="quiz-screen" class="w-full max-w-3xl bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl fade-in hidden flex-col gap-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="quiz-title" class="text-2xl font-bold"></h2>
+                <div id="progress-indicator" class="text-sm font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-4 py-1 rounded-full"></div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-4 min-h-[120px] flex items-center justify-center">
+                <p id="question-text" class="text-xl text-center"></p>
+            </div>
+            <div id="options-container" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6"></div>
+            <div id="quiz-navigation-btns" class="flex justify-between items-center gap-4">
+                <button id="prev-btn" onclick="app.prevQuestion()" class="flex-1 px-6 py-3 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition-transform transform hover:scale-105"></button>
+                <button id="review-btn" onclick="app.toggleReviewModal()" class="flex-1 px-6 py-3 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 transition-transform transform hover:scale-105"></button>
+                <button id="next-btn" onclick="app.nextQuestion()" class="flex-1 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"></button>
+            </div>
+        </div>
+        
+        <!-- 4. Results Screen -->
+        <div id="results-screen" class="w-full max-w-7xl bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl text-center fade-in hidden flex-col items-center">
+            <h2 id="results-title" class="text-3xl font-bold mb-6"></h2>
+            <div id="results-capture-area" class="w-full overflow-x-auto bg-white dark:bg-gray-800 p-4">
+                <table class="min-w-full table-auto divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th id="results-topic-header" scope="col" class="w-[40%] px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
+                            <th id="results-score-header" scope="col" class="w-[15%] px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
+                            <th id="results-analysis-header" scope="col" class="w-[45%] px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- Results will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                <button id="save-results-btn" onclick="app.saveResultsAsImage()" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"></button>
+                <button id="restart-btn" onclick="window.location.reload()" class="px-8 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-transform transform hover:scale-105"></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 6. Review Modal -->
+    <div id="review-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 items-center justify-center p-4 fade-in">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="review-modal-title" class="text-xl font-bold"></h3>
+                <button onclick="app.toggleReviewModal()" class="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white text-3xl font-bold">&times;</button>
+            </div>
+            <div id="question-nav-grid" class="grid gap-2 question-nav-grid max-h-[60vh] overflow-y-auto p-2 bg-gray-100 dark:bg-gray-700 rounded-lg"></div>
+        </div>
+    </div>
+    
+    <!-- Notification Element -->
+    <div id="notification" class="hidden fixed bottom-5 right-5 bg-green-500 text-white py-3 px-5 rounded-lg shadow-lg transition-all duration-300 opacity-0 z-50"></div>
+
+
+    <script>
+    const app = {
+        state: {
+            currentLanguage: 'fa', currentScreen: 'language-selection-screen',
+            questionBank: {}, quizQuestions: [], currentQuestionIndex: 0, answers: {},
+        },
+        config: {
+            totalTopics: 26, questionsPerTopic: 10, questionsToSelectPerTopic: 5,
+        },
+        i18n: {
+            fa: {
+                bannerHTML: `این فایل توسط <strong>اشکبوس آدمیت</strong> تهیه و برنامه‌نویسی شده است. در صورت وجود هرگونه مشکل یا نیاز به پیاده‌سازی دفتر مدیریت پروژه (PMO) در سازمان خود، لطفاً تماس بگیرید: <span dir="ltr" style="white-space: nowrap;">+98 912 233 4468</span><br/><br/><a href="https://linkedin.com/in/ashkbous" target="_blank" class="text-blue-500 hover:underline">لینکدین: linkedin.com/in/ashkbous</a>`,
+                startQuiz: 'شروع آزمون', quizTitle: 'سنجش بلوغ سازمانی',
+                progress: 'سوال {current} از {total}', resultsTitle: 'تحلیل نتایج آزمون', restart: 'شروع مجدد',
+                prevButton: 'قبلی', nextButton: 'بعدی', resultsButton: 'اتمام و دیدن نتیجه',
+                reviewButton: 'بازبینی', reviewModalTitle: 'راهنمای سوالات',
+                resultsTopicHeader: 'مبحث', resultsScoreHeader: 'امتیاز', resultsAnalysisHeader: 'تحلیل',
+                saveResults: 'ذخیره نتایج به عنوان عکس',
+                resultsFilename: 'نتیجه_تست_بلوغ_سازمانی',
+                saveSuccessMessage: 'فایل با نام {filename} ذخیره شد.',
+                analysisLevels: [
+                    { range: [22, 25], text: 'ساختار سازمان در این مبحث بالغ است', class: 'bg-green-700 text-white' },
+                    { range: [18, 21], text: 'ساختار سازمان در این مبحث نیازمند آموزش است', class: 'bg-green-400 text-black' },
+                    { range: [14, 17], text: 'ساختار سازمان در این مبحث نیازمند آموزش و اصلاح است', class: 'bg-yellow-300 text-black' },
+                    { range: [10, 13], text: 'ساختار سازمان در این مبحث نیازمند آموزش و عارضه یابی و اصلاح است', class: 'bg-orange-400 text-black' },
+                    { range: [6, 9], text: 'ساختار سازمان در این مبحث نیازمند آموزش و عارضه یابی و اصلاح و پیاده سازی است', class: 'bg-red-500 text-white' },
+                    { range: [-Infinity, 5], text: 'سازمان در مرحله هرج و مرج است. نیازمند حمایت مدیریتی برای بررسی دقیق علل است', class: 'bg-black text-white' }
+                ],
+                options: [
+                    { score: 5, text: 'کاملا موافقم' }, { score: 4, text: 'موافقم' }, { score: 3, text: 'نظری ندارم' },
+                    { score: 2, text: 'مخالفم' }, { score: 1, text: 'کاملا مخالفم' }, { score: 0, text: 'همچین موردی را در سازمان نداریم' }
+                ]
+            },
+            en: {
+                bannerHTML: `This file has been prepared and programmed by <strong style="white-space: nowrap;">Ashkbous Adamiyat</strong>. If you have any issues or need PMO implemention in your Organization, Please contact: <span dir="ltr" style="white-space: nowrap;">+98 912 233 4468</span><br/><br/><a href="https://linkedin.com/in/ashkbous" target="_blank" class="text-blue-500 hover:underline">Linkedin: linkedin.com/in/ashkbous</a>`,
+                startQuiz: 'Start Quiz', quizTitle: 'Organizational Maturity Assessment',
+                progress: 'Question {current} of {total}', resultsTitle: 'Quiz Results Analysis', restart: 'Restart',
+                prevButton: 'Previous', nextButton: 'Next', resultsButton: 'Finish & See Results',
+                reviewButton: 'Review', reviewModalTitle: 'Question Navigator',
+                resultsTopicHeader: 'Topic', resultsScoreHeader: 'Score', resultsAnalysisHeader: 'Analysis',
+                saveResults: 'Save Results as Image',
+                resultsFilename: 'Organizational_Maturity_Test_Results',
+                saveSuccessMessage: 'File saved as {filename}.',
+                analysisLevels: [
+                    { range: [22, 25], text: 'The organizational structure in this topic is mature', class: 'bg-green-700 text-white' },
+                    { range: [18, 21], text: 'The organizational structure in this topic requires training', class: 'bg-green-400 text-black' },
+                    { range: [14, 17], text: 'The organizational structure in this topic requires training and correction', class: 'bg-yellow-300 text-black' },
+                    { range: [10, 13], text: 'The organizational structure in this topic requires training, diagnosis, and correction', class: 'bg-orange-400 text-black' },
+                    { range: [6, 9], text: 'The organizational structure in this topic requires training, diagnosis, correction, and implementation', class: 'bg-red-500 text-white' },
+                    { range: [-Infinity, 5], text: 'The organization is in a state of chaos. Managerial support is needed for a thorough investigation of the causes', class: 'bg-black text-white' }
+                ],
+                options: [
+                    { score: 5, text: 'Strongly Agree' }, { score: 4, text: 'Agree' }, { score: 3, text: 'Neutral' },
+                    { score: 2, text: 'Disagree' }, { score: 1, text: 'Strongly Disagree' }, { score: 0, text: "We don't have such a case" }
+                ]
+            }
+        },
+        init() { this.loadData(); this.showScreen('language-selection-screen'); },
+        generateDefaultData() {
+            const defaultBank = {
+                topic1: {
+                    name: { fa: 'مشاوره به سطح اجرایی', en: 'Advice to Executive Level' },
+                    fa: [
+                        'دفتر مدیریت پروژه، بینش‌های استراتژیک به‌موقعی را در مورد عملکرد پروژه به مدیران اجرایی ارائه می‌دهد.',
+                        'تصمیمات اجرایی به طور منظم بر اساس توصیه‌های دفتر مدیریت پروژه اتخاذ می‌شوند.',
+                        'نمایندگان دفتر مدیریت پروژه در جلسات برنامه‌ریزی استراتژیک سطح بالا شرکت می‌کنند.',
+                        'دفتر مدیریت پروژه برای پشتیبانی از تصمیم‌گیری اجرایی، تحلیل سناریو ارائه می‌دهد.',
+                        'مدیران اجرایی قبل از سرمایه‌گذاری‌های بزرگ، به طور فعال از دفتر مدیریت پروژه درخواست داده و راهنمایی می‌خواهند.',
+                        'مشاوره‌های دفتر مدیریت پروژه بر تخصیص منابع استراتژیک تأثیر می‌گذارد.',
+                        'دفتر مدیریت پروژه به عنوان یک مشاور کلیدی در میز مدیران اجرایی مورد اعتماد است.',
+                        'بینش‌های دفتر مدیریت پروژه در گزارش‌های هیئت مدیره یا کمیته راهبری گنجانده می‌شود.',
+                        'مدیران اجرایی برای برنامه‌ریزی سازمانی به پیش‌بینی‌های دفتر مدیریت پروژه تکیه می‌کنند.',
+                        'دفتر مدیریت پروژه در همسو کردن پروژه‌ها با چشم‌انداز سطح اجرایی نقش دارد.'
+                    ],
+                    en: [
+                        'The PMO provides executives with timely strategic insights on project performance.',
+                        'Executive decisions are regularly informed by PMO recommendations.',
+                        'PMO representatives participate in high-level strategic planning sessions.',
+                        'The PMO provides scenario analysis to support executive decision-making.',
+                        'Executives actively request data and guidance from the PMO before major investments.',
+                        'PMO advice influences the allocation of strategic resources.',
+                        'The PMO is trusted as a key advisor at the executive table.',
+                        'PMO insights are included in board or steering committee reports.',
+                        'Executives rely on PMO forecasting for organizational planning.',
+                        'The PMO plays a role in aligning projects with executive-level vision.'
+                    ]
+                },
+                topic2: {
+                    name: { fa: 'مدیریت تحقق منافع', en: 'Benefits Realization Management' },
+                    fa: [
+                        'منافع هر پروژه قبل از تأیید به وضوح تعریف می‌شود.',
+                        'یک فرآیند ساختاریافته برای پیگیری منافع پس از تکمیل پروژه وجود دارد.',
+                        'گزارش‌های دفتر مدیریت پروژه شامل منافع مالی و غیرمالی است.',
+                        'معیارهای تحقق منافع به اهداف استراتژیک گره خورده است.',
+                        'حامیان پروژه مسئول تحقق منافع مورد انتظار هستند.',
+                        'درس‌آموخته‌ها از کمبود منافع مستند شده و بر اساس آنها اقدام می‌شود.',
+                        'پیگیری منافع برای کل دوره تحقق مورد انتظار ادامه می‌یابد.',
+                        'دفتر مدیریت پروژه داشبوردهایی را برای نمایش منافع تجمعی در سطح پورتفولیو فراهم می‌کند.',
+                        'تحقق منافع یک عامل کلیدی در تصمیم‌گیری پورتفولیو است.',
+                        'سازمان حداقل سالی یک بار عملکرد منافع را بررسی می‌کند.'
+                    ],
+                    en: [
+                        'Benefits for each project are clearly defined before approval.',
+                        'There is a structured process to track benefits after project completion.',
+                        'PMO reports include both financial and non-financial benefits.',
+                        'Benefits realization metrics are tied to strategic objectives.',
+                        'Project sponsors are accountable for delivering expected benefits.',
+                        'Lessons learned from benefits shortfalls are documented and acted upon.',
+                        'Benefits tracking continues for the full expected realization period.',
+                        'The PMO provides dashboards showing cumulative benefits at the portfolio level.',
+                        'Benefits realization is a key factor in portfolio decision-making.',
+                        'The organization reviews benefits performance at least annually.'
+                    ]
+                },
+                topic3: {
+                    name: { fa: 'پرورش فرهنگ پروژه', en: 'Foster Project Culture' },
+                    fa: [
+                        'دفتر مدیریت پروژه، درک مشترکی از ارزش‌های مدیریت پروژه را ترویج می‌دهد.',
+                        'موفقیت پروژه در سراسر سازمان جشن گرفته می‌شود.',
+                        'فرهنگ پاسخگویی برای ارائه نتایج پروژه وجود دارد.',
+                        'همکاری بین واحدهای مختلف در پروژه‌ها تشویق می‌شود.',
+                        'دفتر مدیریت پروژه، رفتارهای حرفه‌ای مدیریت پروژه را مدل‌سازی می‌کند.',
+                        'کارکنان در همه سطوح اهمیت راهبری پروژه را درک می‌کنند.',
+                        'اشتراک دانش بین پروژه‌ها تشویق و تسهیل می‌شود.',
+                        'دفتر مدیریت پروژه بهبود مستمر را به عنوان یک ارزش اصلی پروژه تقویت می‌کند.',
+                        'رهبری از فرهنگ پروژه سازمان حمایت می‌کند.',
+                        'دفتر مدیریت پروژه برتری در تحویل پروژه را شناسایی و پاداش می‌دهد.'
+                    ],
+                    en: [
+                        'The PMO promotes a shared understanding of project management values.',
+                        'Project success is celebrated across the organization.',
+                        'A culture of accountability exists for delivering project results.',
+                        'Cross-functional collaboration is encouraged on projects.',
+                        'The PMO models professional project management behaviors.',
+                        'Staff at all levels understand the importance of project governance.',
+                        'Knowledge sharing between projects is encouraged and facilitated.',
+                        'The PMO reinforces continuous improvement as a core project value.',
+                        'Leadership champions the organization’s project culture.',
+                        'The PMO recognizes and rewards excellence in project delivery.'
+                    ]
+                },
+                topic4: {
+                    name: { fa: 'نظارت راهبری', en: 'Governance Oversight' },
+                    fa: [
+                        'ساختارهای راهبری مستند شده و به طور مداوم اعمال می‌شوند.',
+                        'گیت‌های مراحل پروژه قبل از رفتن به فاز بعدی اعمال می‌شوند.',
+                        'دفتر مدیریت پروژه از انطباق با سیاست‌های راهبری اطمینان حاصل می‌کند.',
+                        'مسئولیت‌های راهبری به وضوح تخصیص داده شده و ابلاغ می‌شوند.',
+                        'استثنائات در فرآیندهای راهبری نیازمند تأیید مستند است.',
+                        'بررسی‌های راهبری در فواصل زمانی مشخص انجام می‌شود.',
+                        'دفتر مدیریت پروژه اختیار توقف پروژه‌هایی که استانداردهای راهبری را نقض می‌کنند، دارد.',
+                        'تصمیمات راهبری شفاف و مستند هستند.',
+                        'معیارهای راهبری بخشی از گزارش‌دهی اجرایی است.',
+                        'دفتر مدیریت پروژه به طور دوره‌ای سیاست‌های راهبری را بازبینی و به‌روز می‌کند.'
+                    ],
+                    en: [
+                        'Governance structures are documented and consistently applied.',
+                        'Project stage gates are enforced before proceeding to the next phase.',
+                        'The PMO ensures compliance with governance policies.',
+                        'Governance responsibilities are clearly assigned and communicated.',
+                        'Exceptions to governance processes require documented approval.',
+                        'Governance reviews are conducted at defined intervals.',
+                        'The PMO has authority to halt projects that violate governance standards.',
+                        'Governance decisions are transparent and documented.',
+                        'Governance metrics are part of executive reporting.',
+                        'The PMO periodically reviews and updates governance policies.'
+                    ]
+                },
+                topic5: {
+                    name: { fa: 'مدیریت تغییر سازمانی', en: 'Organizational Change Management' },
+                    fa: [
+                        'فرآیندهای مدیریت تغییر در برنامه‌ریزی پروژه گنجانده شده‌اند.',
+                        'دفتر مدیریت پروژه اطمینان حاصل می‌کند که ذی‌اثران برای تغییرات سازمانی آماده هستند.',
+                        'ارزیابی تأثیر تغییر قبل از اجرا انجام می‌شود.',
+                        'مقاومت در برابر تغییر به طور فعال شناسایی و مدیریت می‌شود.',
+                        'دفتر مدیریت پروژه فعالیت‌های آمادگی برای تغییر را هماهنگ می‌کند.',
+                        'برنامه‌های ارتباطی تغییر برای گروه‌های مختلف ذی‌اثران سفارشی‌سازی می‌شود.',
+                        'برای پشتیبانی از تغییرات بزرگ سازمانی، آموزش ارائه می‌شود.',
+                        'نتایج تغییر در برابر اهداف از پیش تعریف‌شده اندازه‌گیری می‌شود.',
+                        'درس‌های آموخته از اقدامات تغییر گذشته، رویه‌های فعلی را آگاه می‌سازد.',
+                        'مدیریت تغییر به عنوان یک عملکرد حیاتی دفتر مدیریت پروژه در نظر گرفته می‌شود.'
+                    ],
+                    en: [
+                        'Change management processes are embedded in project planning.',
+                        'The PMO ensures stakeholders are prepared for organizational changes.',
+                        'Change impact assessments are performed before implementation.',
+                        'Resistance to change is actively identified and managed.',
+                        'The PMO coordinates change readiness activities.',
+                        'Change communication plans are tailored to stakeholder groups.',
+                        'Training is provided to support major organizational changes.',
+                        'Change outcomes are measured against predefined objectives.',
+                        'Lessons from past change initiatives inform current practices.',
+                        'Change management is considered a critical PMO function.'
+                    ]
+                },
+                topic6: {
+                    name: { fa: 'مدیریت پورتفولیو', en: 'Portfolio Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه، دیدگاه متمرکزی از تمام پروژه‌های فعال را مدیریت می‌کند.',
+                        'اولویت‌های پورتفولیو به طور منظم در برابر اهداف استراتژیک بازبینی می‌شوند.',
+                        'دفتر مدیریت پروژه تخصیص منابع را در سراسر پورتفولیو بهینه‌سازی می‌کند.',
+                        'معیارهای عملکرد پورتفولیو پیگیری و گزارش می‌شوند.',
+                        'ترکیب پورتفولیو بین طرح‌های کوتاه‌مدت و بلندمدت متعادل است.',
+                        'دفتر مدیریت پروژه می‌تواند بودجه را به پروژه‌های با اولویت بالاتر تخصیص مجدد دهد.',
+                        'ریسک‌های پورتفولیو در سطح تجمیعی شناسایی و نظارت می‌شوند.',
+                        'تصمیمات پورتفولیو بر اساس داده‌های قابل اعتماد و جاری است.',
+                        'دفتر مدیریت پروژه از همسویی بین ترکیب پورتفولیو و استراتژی اطمینان حاصل می‌کند.',
+                        'بازبینی‌های پورتفولیو در یک برنامه زمانی مشخص انجام می‌شود.'
+                    ],
+                    en: [
+                        'The PMO manages a centralized view of all active projects.',
+                        'Portfolio priorities are reviewed regularly against strategic goals.',
+                        'The PMO optimizes resource allocation across the portfolio.',
+                        'Portfolio performance metrics are tracked and reported.',
+                        'The portfolio mix is balanced between short-term and long-term initiatives.',
+                        'The PMO can reallocate funding to higher-priority projects.',
+                        'Portfolio risks are identified and monitored at an aggregate level.',
+                        'Portfolio decisions are based on reliable, current data.',
+                        'The PMO ensures alignment between portfolio composition and strategy.',
+                        'Portfolio reviews occur on a set schedule.'
+                    ]
+                },
+                topic7: {
+                    name: { fa: 'پشتیبانی از برنامه‌ریزی استراتژیک', en: 'Strategic Planning Support' },
+                    fa: [
+                        'دفتر مدیریت پروژه داده‌هایی را برای اطلاع‌رسانی در مورد تعیین اهداف استراتژیک فراهم می‌کند.',
+                        'اولویت‌های استراتژیک در پورتفولیو پروژه منعکس می‌شوند.',
+                        'تحلیل دفتر مدیریت پروژه از برنامه‌ریزی بلندمدت سازمانی پشتیبانی می‌کند.',
+                        'نقشه‌های راه استراتژیک ورودی دفتر مدیریت پروژه را شامل می‌شوند.',
+                        'دفتر مدیریت پروژه کارگاه‌هایی در مورد همسویی استراتژیک برگزار می‌کند.',
+                        'تغییرات استراتژی سازمانی به سرعت در برنامه‌های دفتر مدیریت پروژه منعکس می‌شود.',
+                        'دفتر مدیریت پروژه نحوه مشارکت پروژه‌ها در نتایج استراتژیک را ارزیابی می‌کند.',
+                        'پیش‌بینی‌های دفتر مدیریت پروژه در چرخه‌های برنامه‌ریزی سالانه استفاده می‌شود.',
+                        'دفتر مدیریت پروژه اطمینان می‌دهد که برنامه‌های استراتژیک از طریق پروژه‌ها قابل اجرا هستند.',
+                        'طرح‌های استراتژیک از سوی دفتر مدیریت پروژه تحت نظارت راهبری قرار می‌گیرند.'
+                    ],
+                    en: [
+                        'The PMO provides data to inform strategic goal setting.',
+                        'Strategic priorities are reflected in the project portfolio.',
+                        'PMO analysis supports long-term organizational planning.',
+                        'Strategic roadmaps incorporate PMO input.',
+                        'The PMO facilitates workshops on strategic alignment.',
+                        'Organizational strategy changes are quickly reflected in PMO plans.',
+                        'The PMO assesses how projects contribute to strategic outcomes.',
+                        'PMO forecasts are used in annual planning cycles.',
+                        'The PMO ensures strategic plans are actionable through projects.',
+                        'Strategic initiatives receive governance oversight from the PMO.'
+                    ]
+                },
+                topic8: {
+                    name: { fa: 'مدیریت دانش', en: 'Knowledge Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه یک مخزن مرکزی از مستندات پروژه را نگهداری می‌کند.',
+                        'درس‌آموخته‌ها به گونه‌ای ذخیره می‌شوند که جستجو و استفاده از آنها آسان باشد.',
+                        'دانش از پروژه‌های تکمیل‌شده در بین تیم‌ها به اشتراک گذاشته می‌شود.',
+                        'فرآیندهای دفتر مدیریت پروژه شامل ثبت دانش ضمنی کارکنان است.',
+                        'دفتر مدیریت پروژه استفاده مجدد از قالب‌ها و بهترین شیوه‌ها را ترویج می‌دهد.',
+                        'ابزارهای مدیریت دانش با سیستم‌های دفتر مدیریت پروژه یکپارچه هستند.',
+                        'ذی‌اثران برای مشارکت در پایگاه دانش دفتر مدیریت پروژه تشویق می‌شوند.',
+                        'شکاف‌های دانشی به طور فعال شناسایی و برطرف می‌شوند.',
+                        'دفتر مدیریت پروژه استفاده از منابع دانشی خود را پیگیری می‌کند.',
+                        'حفظ دانش بخشی از رویکرد مدیریت ریسک دفتر مدیریت پروژه است.'
+                    ],
+                    en: [
+                        'The PMO maintains a central repository of project documentation.',
+                        'Lessons learned are stored in a way that’s easy to search and use.',
+                        'Knowledge from completed projects is shared across teams.',
+                        'PMO processes include capturing tacit knowledge from staff.',
+                        'The PMO promotes re-use of templates and best practices.',
+                        'Knowledge management tools are integrated with PMO systems.',
+                        'Stakeholders are encouraged to contribute to the PMO knowledge base.',
+                        'Knowledge gaps are identified and addressed proactively.',
+                        'The PMO tracks usage of its knowledge resources.',
+                        'Knowledge retention is part of the PMO’s risk management approach.'
+                    ]
+                },
+                topic9: {
+                    name: { fa: 'مدیریت متدولوژی‌ها و چارچوب‌ها', en: 'Methodologies and Frameworks Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه متدولوژی‌های استاندارد مدیریت پروژه را نگهداری می‌کند.',
+                        'متدولوژی‌ها به طور منظم بازبینی و به‌روز می‌شوند.',
+                        'تیم‌های پروژه به طور مداوم از چارچوب‌های تعریف‌شده دفتر مدیریت پروژه پیروی می‌کنند.',
+                        'دفتر مدیریت پروژه در مورد سفارشی‌سازی متدولوژی‌ها برای پروژه‌ها راهنمایی ارائه می‌دهد.',
+                        'پذیرش چارچوب‌ها اندازه‌گیری و گزارش می‌شود.',
+                        'متدولوژی‌ها با استانداردهای شناخته‌شده صنعتی هماهنگ هستند.',
+                        'دفتر مدیریت پروژه در مورد چارچوب‌های جدید یا به‌روزشده آموزش ارائه می‌دهد.',
+                        'انحراف از متدولوژی‌های استاندارد نیازمند تأیید دفتر مدیریت پروژه است.',
+                        'تغییرات چارچوب به طور مؤثر در سراسر سازمان ابلاغ می‌شود.',
+                        'دفتر مدیریت پروژه از طریق ممیزی یا بازبینی، انطباق با متدولوژی را ترویج می‌دهد.'
+                    ],
+                    en: [
+                        'The PMO maintains standard project management methodologies.',
+                        'Methodologies are reviewed and updated regularly.',
+                        'Project teams consistently follow the PMO’s defined frameworks.',
+                        'The PMO provides guidance on tailoring methodologies to projects.',
+                        'Framework adoption is measured and reported.',
+                        'Methodologies align with recognized industry standards.',
+                        'The PMO offers training on new or updated frameworks.',
+                        'Deviations from standard methodologies require PMO approval.',
+                        'Framework changes are communicated effectively across the organization.',
+                        'The PMO promotes methodology compliance through audits or reviews.'
+                    ]
+                },
+                topic10: {
+                    name: { fa: 'مدیریت منابع', en: 'Resource Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه فهرستی به‌روز از منابع موجود را نگهداری می‌کند.',
+                        'تصمیمات تخصیص منابع مبتنی بر داده است.',
+                        'دفتر مدیریت پروژه حجم کاری منابع را در پروژه‌ها متعادل می‌کند.',
+                        'پیش‌بینی منابع در برنامه‌ریزی پورتفولیو یکپارچه است.',
+                        'دفتر مدیریت پروژه به مهارت‌ها و شایستگی‌های سراسر سازمان دید دارد.',
+                        'تضاد منابع به سرعت توسط دفتر مدیریت پروژه حل می‌شود.',
+                        'برنامه‌ریزی ظرفیت بخشی از فرآیندهای منظم دفتر مدیریت پروژه است.',
+                        'دفتر مدیریت پروژه برای پر کردن شکاف‌های مهارتی منابع، آموزش را هماهنگ می‌کند.',
+                        'بهره‌برداری از منابع پیگیری و گزارش می‌شود.',
+                        'تصمیمات مدیریت منابع با اولویت‌های استراتژیک هماهنگ است.'
+                    ],
+                    en: [
+                        'The PMO maintains an updated inventory of available resources.',
+                        'Resource allocation decisions are data-driven.',
+                        'The PMO balances resource workloads across projects.',
+                        'Resource forecasting is integrated into portfolio planning.',
+                        'The PMO has visibility into skills and competencies across the organization.',
+                        'Resource conflicts are resolved promptly by the PMO.',
+                        'Capacity planning is part of the PMO’s regular processes.',
+                        'The PMO coordinates training to fill resource skill gaps.',
+                        'Resource utilization is tracked and reported.',
+                        'Resource management decisions are aligned with strategic priorities.'
+                    ]
+                },
+                topic11: {
+                    name: { fa: 'مدیریت سیستم‌ها و ابزارها', en: 'Systems and Tools Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه نرم‌افزارهای مدیریت پروژه را انتخاب و مدیریت می‌کند.',
+                        'ابزارهای مورد استفاده توسط دفتر مدیریت پروژه به خوبی با سیستم‌های سازمانی یکپارچه می‌شوند.',
+                        'سیستم‌های دفتر مدیریت پروژه داده‌های پروژه را به صورت آنی ارائه می‌دهند.',
+                        'دفتر مدیریت پروژه فناوری‌های جدید را برای بهبود تحویل پروژه ارزیابی می‌کند.',
+                        'استفاده از ابزار برای اطمینان از پذیرش آن نظارت می‌شود.',
+                        'دفتر مدیریت پروژه در مورد سیستم‌ها و ابزارهای خود آموزش ارائه می‌دهد.',
+                        'ارتقاء سیستم‌ها با حداقل اختلال برنامه‌ریزی می‌شود.',
+                        'ابزارها هم از رویکردهای مدیریت پروژه سنتی و هم چابک پشتیبانی می‌کنند.',
+                        'دفتر مدیریت پروژه از حفظ کیفیت داده‌های سیستم اطمینان حاصل می‌کند.',
+                        'سیستم‌های دفتر مدیریت پروژه امن و مطابق با سیاست‌های سازمانی هستند.'
+                    ],
+                    en: [
+                        'The PMO selects and manages project management software.',
+                        'Tools used by the PMO integrate well with organizational systems.',
+                        'PMO systems provide real-time project data.',
+                        'The PMO evaluates new technologies to improve project delivery.',
+                        'Tool usage is monitored to ensure adoption.',
+                        'The PMO provides training on its systems and tools.',
+                        'System upgrades are planned with minimal disruption.',
+                        'Tools support both traditional and agile project management approaches.',
+                        'The PMO ensures system data quality is maintained.',
+                        'PMO systems are secure and compliant with organizational policies.'
+                    ]
+                },
+                topic12: {
+                    name: { fa: 'آموزش و توسعه', en: 'Training and Development' },
+                    fa: [
+                        'دفتر مدیریت پروژه آموزش‌های ساختاریافته‌ای برای مدیران پروژه ارائه می‌دهد.',
+                        'برنامه‌های آموزشی با نیازهای سازمانی هماهنگ است.',
+                        'دفتر مدیریت پروژه از گواهینامه‌های حرفه‌ای برای کارکنان پشتیبانی می‌کند.',
+                        'اثربخشی آموزش از طریق بهبود عملکرد اندازه‌گیری می‌شود.',
+                        'دفتر مدیریت پروژه برای مدیران پروژه کم‌تجربه‌تر مربیگری فراهم می‌کند.',
+                        'آموزش هم مهارت‌های فنی و هم رهبری را پوشش می‌دهد.',
+                        'دفتر مدیریت پروژه فرهنگ یادگیری را در جامعه پروژه ترویج می‌دهد.',
+                        'ارزیابی مهارت‌ها برای راهنمایی برنامه‌های آموزشی استفاده می‌شود.',
+                        'دفتر مدیریت پروژه یک تقویم آموزشی قابل دسترس برای کارکنان نگهداری می‌کند.',
+                        'محتوای آموزشی به طور منظم برای بازتاب بهترین شیوه‌ها به‌روز می‌شود.'
+                    ],
+                    en: [
+                        'The PMO offers structured training for project managers.',
+                        'Training programs are aligned to organizational needs.',
+                        'The PMO supports professional certification for staff.',
+                        'Training effectiveness is measured through performance improvement.',
+                        'The PMO provides mentoring for less experienced project managers.',
+                        'Training covers both technical and leadership skills.',
+                        'The PMO promotes a learning culture within the project community.',
+                        'Skills assessments are used to guide training plans.',
+                        'The PMO maintains a training calendar accessible to staff.',
+                        'Training content is updated regularly to reflect best practices.'
+                    ]
+                },
+                topic13: {
+                    name: { fa: 'ارزیابی‌های ممیزی', en: 'Audit Assessments' },
+                    fa: [
+                        'دفتر مدیریت پروژه ممیزی‌هایی را بر روی پروژه‌های منتخب انجام می‌دهد.',
+                        'معیارهای ممیزی به وضوح تعریف و استانداردسازی شده‌اند.',
+                        'یافته‌های ممیزی مستند و به اشتراک گذاشته می‌شوند.',
+                        'نتایج ممیزی برای بهبود فرآیندهای دفتر مدیریت پروژه استفاده می‌شود.',
+                        'دفتر مدیریت پروژه از اجرای اقدامات اصلاحی اطمینان حاصل می‌کند.',
+                        'فرکانس ممیزی بر اساس ریسک و پیچیدگی پروژه است.',
+                        'ممیزی‌ها انطباق با استانداردهای داخلی و خارجی را پوشش می‌دهند.',
+                        'دفتر مدیریت پروژه گزارشی از تمام فعالیت‌های ممیزی نگهداری می‌کند.',
+                        'نتایج ممیزی بر آموزش و به‌روزرسانی فرآیندها تأثیر می‌گذارد.',
+                        'فرآیند ممیزی شفاف و مورد پذیرش ذی‌اثران است.'
+                    ],
+                    en: [
+                        'The PMO conducts audits on selected projects.',
+                        'Audit criteria are clearly defined and standardized.',
+                        'Findings from audits are documented and shared.',
+                        'Audit results are used to improve PMO processes.',
+                        'The PMO verifies that corrective actions are implemented.',
+                        'Audit frequency is based on project risk and complexity.',
+                        'Audits cover compliance with both internal and external standards.',
+                        'The PMO maintains a log of all audit activities.',
+                        'Audit outcomes influence training and process updates.',
+                        'The audit process is transparent and accepted by stakeholders.'
+                    ]
+                },
+                topic14: {
+                    name: { fa: 'مدیریت کنترل تغییرات', en: 'Change Control Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه یک فرآیند کنترل تغییر رسمی را اعمال می‌کند.',
+                        'تمام تغییرات محدوده قبل از تأیید از نظر تأثیر ارزیابی می‌شوند.',
+                        'درخواست‌های تغییر مستند و پیگیری می‌شوند.',
+                        'ذی‌اثران به سرعت از تغییرات تأیید شده مطلع می‌شوند.',
+                        'فرآیندهای کنترل تغییر به طور مداوم اعمال می‌شوند.',
+                        'دفتر مدیریت پروژه تأثیر تجمعی تغییرات بر یک پروژه را ارزیابی می‌کند.',
+                        'گزارش‌های تغییر برای همه پروژه‌ها نگهداری می‌شود.',
+                        'دفتر مدیریت پروژه در مورد مدیریت درخواست‌های تغییر راهنمایی ارائه می‌دهد.',
+                        'تغییرات تأیید نشده مورد رسیدگی و اصلاح قرار می‌گیرند.',
+                        'عملکرد کنترل تغییر در سطح پورتفولیو نظارت می‌شود.'
+                    ],
+                    en: [
+                        'The PMO enforces a formal change control process.',
+                        'All scope changes are evaluated for impact before approval.',
+                        'Change requests are documented and tracked.',
+                        'Stakeholders are informed of approved changes promptly.',
+                        'Change control processes are consistently applied.',
+                        'The PMO assesses the cumulative effect of changes on a project.',
+                        'Change logs are maintained for all projects.',
+                        'The PMO provides guidance on managing change requests.',
+                        'Unapproved changes are addressed and corrected.',
+                        'Change control performance is monitored at the portfolio level.'
+                    ]
+                },
+                topic15: {
+                    name: { fa: 'مدیریت ارتباط با مشتری', en: 'Customer Relationship Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه روابط قوی با مشتریان داخلی را حفظ می‌کند.',
+                        'بازخورد مشتریان به طور منظم در مورد خدمات دفتر مدیریت پروژه جمع‌آوری می‌شود.',
+                        'دفتر مدیریت پروژه به سرعت به نگرانی‌های مشتریان پاسخ می‌دهد.',
+                        'کارکنان دفتر مدیریت پروژه نیازهای پایگاه مشتریان خود را درک می‌کنند.',
+                        'دفتر مدیریت پروژه خدمات خود را برای بهبود رضایت مشتریان تطبیق می‌دهد.',
+                        'دفتر مدیریت پروژه به‌روزرسانی‌های پیشرفت پروژه را با مشتریان به اشتراک می‌گذارد.',
+                        'مدیریت روابط یک مسئولیت تعریف‌شده دفتر مدیریت پروژه است.',
+                        'مشتریان در تصمیمات اصلی پروژه مشارکت دارند.',
+                        'دفتر مدیریت پروژه از نظرسنجی‌ها برای اندازه‌گیری روندهای رضایت استفاده می‌کند.',
+                        'روابط قوی با مشتریان به موفقیت پروژه کمک می‌کند.'
+                    ],
+                    en: [
+                        'The PMO maintains strong relationships with internal clients.',
+                        'Customer feedback is regularly collected on PMO services.',
+                        'The PMO responds promptly to customer concerns.',
+                        'PMO staff understand the needs of their customer base.',
+                        'The PMO adapts services to improve customer satisfaction.',
+                        'The PMO shares project progress updates with customers.',
+                        'Relationship management is a defined PMO responsibility.',
+                        'Customers are involved in major project decisions.',
+                        'The PMO uses surveys to measure satisfaction trends.',
+                        'Strong customer relationships contribute to project success.'
+                    ]
+                },
+                topic16: {
+                    name: { fa: 'تحلیل داده و گزارش‌دهی', en: 'Data Analytics and Reporting' },
+                    fa: [
+                        'دفتر مدیریت پروژه گزارش‌های عملکرد دقیق و به‌موقعی ارائه می‌دهد.',
+                        'گزارش‌ها شامل تحلیل و توصیه‌ها هستند، نه فقط داده‌های خام.',
+                        'داشبوردهای دفتر مدیریت پروژه معیارهای کلیدی پروژه را به صورت آنی نمایش می‌دهند.',
+                        'تحلیل داده‌ها از تصمیم‌گیری پورتفولیو پشتیبانی می‌کند.',
+                        'گزارش‌دهی دفتر مدیریت پروژه برای نیازهای مختلف ذی‌اثران سفارشی‌سازی می‌شود.',
+                        'تحلیل‌های پیش‌بینی‌کننده برای پیش‌بینی ریسک‌های پروژه استفاده می‌شوند.',
+                        'داده‌های تاریخی برای بهبود دقت پیش‌بینی استفاده می‌شوند.',
+                        'معیارهای دفتر مدیریت پروژه با شاخص‌های عملکرد سازمانی هماهنگ هستند.',
+                        'ابزارهای بصری‌سازی داده به طور مؤثر در گزارش‌ها استفاده می‌شوند.',
+                        'گزارش‌ها در یک برنامه زمانی مداوم و قابل اعتماد توزیع می‌شوند.'
+                    ],
+                    en: [
+                        'The PMO provides accurate, timely performance reports.',
+                        'Reports include analysis and recommendations, not just raw data.',
+                        'PMO dashboards display key project metrics in real time.',
+                        'Data analytics support portfolio decision-making.',
+                        'PMO reporting is tailored to different stakeholder needs.',
+                        'Predictive analytics are used to anticipate project risks.',
+                        'Historical data is used to improve forecasting accuracy.',
+                        'PMO metrics are aligned with organizational performance indicators.',
+                        'Data visualization tools are used effectively in reports.',
+                        'Reports are distributed on a consistent and reliable schedule.'
+                    ]
+                },
+                topic17: {
+                    name: { fa: 'مدیریت مشکلات', en: 'Issue Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه یک گزارش مرکزی از مشکلات پروژه را نگهداری می‌کند.',
+                        'مشکلات برای حل و فصل، دسته‌بندی و اولویت‌بندی می‌شوند.',
+                        'دفتر مدیریت پروژه حل مشکلات تشدید شده پروژه را تسهیل می‌کند.',
+                        'روندهای مشکلات برای شناسایی مشکلات تکراری نظارت می‌شوند.',
+                        'فرآیندهای مدیریت مشکلات در همه پروژه‌ها استانداردسازی شده‌اند.',
+                        'تحلیل علل ریشه‌ای برای مشکلات اصلی انجام می‌شود.',
+                        'دفتر مدیریت پروژه مسئولیت حل مشکلات را تخصیص می‌دهد.',
+                        'وضعیت مشکلات تا زمان بسته شدن پیگیری می‌شود.',
+                        'درس‌های آموخته از مشکلات حل‌شده برای استفاده در آینده مستند می‌شوند.',
+                        'عملکرد مدیریت مشکلات به ذی‌اثران گزارش می‌شود.'
+                    ],
+                    en: [
+                        'The PMO maintains a central log of project issues.',
+                        'Issues are categorized and prioritized for resolution.',
+                        'The PMO facilitates resolution of escalated project issues.',
+                        'Issue trends are monitored to identify recurring problems.',
+                        'Issue management processes are standardized across projects.',
+                        'Root cause analysis is performed for major issues.',
+                        'The PMO assigns accountability for issue resolution.',
+                        'Issue status is tracked until closure.',
+                        'Lessons from resolved issues are documented for future use.',
+                        'Issue management performance is reported to stakeholders.'
+                    ]
+                },
+                topic18: {
+                    name: { fa: 'مربیگری و راهبری', en: 'Mentoring and Coaching' },
+                    fa: [
+                        'دفتر مدیریت پروژه کارکنان باتجربه را با مدیران پروژه جدید جفت می‌کند.',
+                        'جلسات مربیگری بخشی از خدمات پشتیبانی دفتر مدیریت پروژه است.',
+                        'مربیان در مورد بهترین شیوه‌های مدیریت پروژه راهنمایی ارائه می‌دهند.',
+                        'مربیگری هم بر مهارت‌های فنی و هم رهبری تمرکز دارد.',
+                        'روابط مربیگری توسط دفتر مدیریت پروژه پیگیری و پشتیبانی می‌شود.',
+                        'دفتر مدیریت پروژه اشتراک دانش را از طریق مربیگری تشویق می‌کند.',
+                        'مربیگری برای نیازهای توسعه فردی سفارشی‌سازی می‌شود.',
+                        'مربیان دفتر مدیریت پروژه به خاطر مشارکت‌هایشان شناخته می‌شوند.',
+                        'مربیگری به ایجاد قابلیت مدیریت پروژه داخلی کمک می‌کند.',
+                        'دفتر مدیریت پروژه تأثیر برنامه‌های مربیگری را ارزیابی می‌کند.'
+                    ],
+                    en: [
+                        'The PMO pairs experienced staff with new project managers.',
+                        'Coaching sessions are part of PMO support services.',
+                        'Mentors provide guidance on project management best practices.',
+                        'Coaching focuses on both technical and leadership skills.',
+                        'Mentoring relationships are tracked and supported by the PMO.',
+                        'The PMO encourages knowledge sharing through mentoring.',
+                        'Coaching is tailored to individual development needs.',
+                        'PMO mentors are recognized for their contributions.',
+                        'Mentoring helps build internal project management capability.',
+                        'The PMO evaluates the impact of mentoring programs.'
+                    ]
+                },
+                topic19: {
+                    name: { fa: 'مدیریت عملکرد', en: 'Performance Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه شاخص‌های کلیدی عملکرد (KPI) را برای عملکرد پروژه تعریف می‌کند.',
+                        'عملکرد پروژه در فواصل زمانی منظم بازبینی می‌شود.',
+                        'پروژه‌های با عملکرد ضعیف، مداخله هدفمند دفتر مدیریت پروژه را دریافت می‌کنند.',
+                        'معیارهای عملکرد به اهداف استراتژیک مرتبط هستند.',
+                        'تیم‌های پروژه بر اساس داده‌های عملکرد بازخورد دریافت می‌کنند.',
+                        'اندازه‌گیری عملکرد دفتر مدیریت پروژه شامل شاخص‌های کارایی است.',
+                        'اهداف عملکرد به وضوح به ذی‌اثران ابلاغ می‌شود.',
+                        'روندهای عملکرد برای بهبود فرآیندها تحلیل می‌شوند.',
+                        'دفتر مدیریت پروژه هم عملکرد زمان‌بندی و هم بودجه را به طور مداوم پیگیری می‌کند.',
+                        'اقدامات اصلاحی به سرعت هنگام کاهش عملکرد اجرا می‌شوند.'
+                    ],
+                    en: [
+                        'The PMO defines KPIs for project performance.',
+                        'Project performance is reviewed at regular intervals.',
+                        'Underperforming projects receive targeted PMO intervention.',
+                        'Performance metrics are linked to strategic objectives.',
+                        'Project teams receive feedback based on performance data.',
+                        'PMO performance measurement includes efficiency indicators.',
+                        'Performance targets are clearly communicated to stakeholders.',
+                        'Performance trends are analyzed to improve processes.',
+                        'PMO tracks both schedule and budget performance consistently.',
+                        'Corrective actions are implemented promptly when performance declines.'
+                    ]
+                },
+                topic20: {
+                    name: { fa: 'مدیریت برنامه', en: 'Program Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه بر هماهنگی پروژه‌های مرتبط به عنوان برنامه نظارت می‌کند.',
+                        'مدیران برنامه از طریق ساختار دفتر مدیریت پروژه گزارش می‌دهند.',
+                        'دفتر مدیریت پروژه اطمینان حاصل می‌کند که برنامه‌ها منافع مورد نظر خود را تحویل می‌دهند.',
+                        'فرآیندهای راهبری برنامه تعریف و اعمال می‌شوند.',
+                        'وابستگی‌های بین پروژه‌ها در یک برنامه به طور فعال مدیریت می‌شوند.',
+                        'ریسک‌های برنامه در سطح تجمیعی نظارت می‌شوند.',
+                        'دفتر مدیریت پروژه از تخصیص منابع در سطح برنامه پشتیبانی می‌کند.',
+                        'عملکرد برنامه در برابر اهداف کلیدی پیگیری می‌شود.',
+                        'تعامل با ذی‌اثران در سطح برنامه انجام می‌شود.',
+                        'درس‌های آموخته از برنامه‌ها برای طرح‌های آینده ثبت می‌شود.'
+                    ],
+                    en: [
+                        'The PMO oversees coordination of related projects as programs.',
+                        'Program managers report through the PMO structure.',
+                        'The PMO ensures programs deliver their intended benefits.',
+                        'Program governance processes are defined and enforced.',
+                        'Dependencies between projects in a program are actively managed.',
+                        'Program risks are monitored at the aggregate level.',
+                        'The PMO supports program-level resource allocation.',
+                        'Program performance is tracked against key objectives.',
+                        'Stakeholder engagement occurs at the program level.',
+                        'Lessons from programs are captured for future initiatives.'
+                    ]
+                },
+                topic21: {
+                    name: { fa: 'مدیریت پروژه', en: 'Project Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه مدیریت مستقیم برای پروژه‌های منتخب را فراهم می‌کند.',
+                        'مدیران پروژه دفتر مدیریت پروژه از فرآیندهای استاندارد پیروی می‌کنند.',
+                        'دفتر مدیریت پروژه اطمینان حاصل می‌کند که پروژه‌ها به موقع و در محدوده تحویل داده می‌شوند.',
+                        'پروژه‌های تحت رهبری دفتر مدیریت پروژه استانداردهای کیفیت تعریف‌شده را برآورده می‌کنند.',
+                        'دفتر مدیریت پروژه انتظارات ذی‌اثران را در طول پروژه‌ها مدیریت می‌کند.',
+                        'گزارش‌های ریسک و مسائل برای پروژه‌های مدیریت‌شده توسط دفتر مدیریت پروژه نگهداری می‌شود.',
+                        'دفتر مدیریت پروژه هزینه‌های پروژه را در برابر بودجه‌های تأیید شده پیگیری می‌کند.',
+                        'دفتر مدیریت پروژه فعالیت‌های آغاز و پایان پروژه را تسهیل می‌کند.',
+                        'درس‌آموخته‌ها بخشی از هر پروژه مدیریت‌شده توسط دفتر مدیریت پروژه است.',
+                        'دفتر مدیریت پروژه رضایت مشتری را برای پروژه‌های مدیریت‌شده خود اندازه‌گیری می‌کند.'
+                    ],
+                    en: [
+                        'The PMO provides direct management for selected projects.',
+                        'PMO project managers follow standardized processes.',
+                        'The PMO ensures projects are delivered on time and within scope.',
+                        'PMO-led projects meet defined quality standards.',
+                        'The PMO manages stakeholder expectations during projects.',
+                        'Risk and issue logs are maintained for PMO-managed projects.',
+                        'PMO tracks project costs against approved budgets.',
+                        'The PMO facilitates project kickoff and closure activities.',
+                        'Lessons learned are part of every PMO-managed project.',
+                        'The PMO measures customer satisfaction for its managed projects.'
+                    ]
+                },
+                topic22: {
+                    name: { fa: 'خدمات پشتیبانی پروژه', en: 'Project Support Services' },
+                    fa: [
+                        'دفتر مدیریت پروژه پشتیبانی اداری به تیم‌های پروژه ارائه می‌دهد.',
+                        'قالب‌ها و ابزارهای پروژه توسط دفتر مدیریت پروژه فراهم می‌شوند.',
+                        'دفتر مدیریت پروژه در زمان‌بندی و هماهنگی منابع کمک می‌کند.',
+                        'مستندات پروژه به صورت مرکزی مدیریت می‌شود.',
+                        'پشتیبانی دفتر مدیریت پروژه به حفظ انطباق با راهبری پروژه کمک می‌کند.',
+                        'دفتر مدیریت پروژه پشتیبانی به سبک میز کمک برای سوالات پروژه ارائه می‌دهد.',
+                        'دفتر مدیریت پروژه ابزارهای پیگیری بودجه را برای مدیران پروژه فراهم می‌کند.',
+                        'خدمات پشتیبانی در طول چرخه عمر پروژه در دسترس هستند.',
+                        'دفتر مدیریت پروژه پایبندی به برنامه‌های پروژه را نظارت می‌کند.',
+                        'اثربخشی پشتیبانی به طور منظم بازبینی می‌شود.'
+                    ],
+                    en: [
+                        'The PMO offers administrative support to project teams.',
+                        'Project templates and tools are provided by the PMO.',
+                        'The PMO assists with scheduling and resource coordination.',
+                        'Project documentation is managed centrally.',
+                        'PMO support helps maintain project governance compliance.',
+                        'The PMO offers helpdesk-style support for project queries.',
+                        'The PMO provides budget tracking tools for project managers.',
+                        'Support services are available throughout the project lifecycle.',
+                        'The PMO monitors adherence to project plans.',
+                        'Support effectiveness is reviewed regularly.'
+                    ]
+                },
+                topic23: {
+                    name: { fa: 'تضمین کیفیت', en: 'Quality Assurance' },
+                    fa: [
+                        'دفتر مدیریت پروژه استانداردهای کیفیت را برای پروژه‌ها تعریف می‌کند.',
+                        'بازبینی‌های کیفیت در مراحل کلیدی پروژه انجام می‌شود.',
+                        'تحویل‌دادنی‌ها برای انطباق با الزامات بررسی می‌شوند.',
+                        'دفتر مدیریت پروژه آموزش مدیریت کیفیت ارائه می‌دهد.',
+                        'معیارهای کیفیت پیگیری و گزارش می‌شوند.',
+                        'مسائل کیفیت به سرعت هنگام شناسایی برطرف می‌شوند.',
+                        'دفتر مدیریت پروژه از چک‌لیست‌ها برای استانداردسازی بازبینی‌های کیفیت استفاده می‌کند.',
+                        'برنامه‌های بهبود کیفیت در صورت لزوم اجرا می‌شوند.',
+                        'تضمین کیفیت در متدولوژی‌های پروژه گنجانده شده است.',
+                        'دفتر مدیریت پروژه فرهنگ کیفیت را در تحویل پروژه پرورش می‌دهد.'
+                    ],
+                    en: [
+                        'The PMO defines quality standards for projects.',
+                        'Quality reviews are conducted at key project stages.',
+                        'Deliverables are checked for compliance with requirements.',
+                        'The PMO provides quality management training.',
+                        'Quality metrics are tracked and reported.',
+                        'Quality issues are addressed promptly when identified.',
+                        'The PMO uses checklists to standardize quality reviews.',
+                        'Quality improvement plans are implemented where needed.',
+                        'Quality assurance is embedded in project methodologies.',
+                        'The PMO fosters a culture of quality in project delivery.'
+                    ]
+                },
+                topic24: {
+                    name: { fa: 'مدیریت ریسک', en: 'Risk Management' },
+                    fa: [
+                        'دفتر مدیریت پروژه یک دفتر ثبت ریسک متمرکز را نگهداری می‌کند.',
+                        'ریسک‌ها از نظر احتمال و تأثیر ارزیابی می‌شوند.',
+                        'برنامه‌های کاهش ریسک برای ریسک‌های اصلی توسعه می‌یابند.',
+                        'نظارت بر ریسک بخشی از بازبینی‌های منظم پروژه است.',
+                        'ریسک‌های سطح پورتفولیو توسط دفتر مدیریت پروژه پیگیری می‌شوند.',
+                        'روندهای ریسک برای شناسایی مسائل سیستمی تحلیل می‌شوند.',
+                        'دفتر مدیریت پروژه آموزش مدیریت ریسک ارائه می‌دهد.',
+                        'برنامه‌های احتیاطی برای ریسک‌های با اولویت بالا تهیه می‌شوند.',
+                        'مالکیت ریسک به وضوح تخصیص داده می‌شود.',
+                        'دفتر مدیریت پروژه دفترهای ثبت ریسک را در طول چرخه عمر پروژه به‌روز می‌کند.'
+                    ],
+                    en: [
+                        'The PMO maintains a centralized risk register.',
+                        'Risks are assessed for probability and impact.',
+                        'Risk mitigation plans are developed for major risks.',
+                        'Risk monitoring is part of regular project reviews.',
+                        'Portfolio-level risks are tracked by the PMO.',
+                        'Risk trends are analyzed to identify systemic issues.',
+                        'The PMO provides risk management training.',
+                        'Contingency plans are prepared for high-priority risks.',
+                        'Risk ownership is clearly assigned.',
+                        'The PMO updates risk registers throughout the project lifecycle.'
+                    ]
+                },
+                topic25: {
+                    name: { fa: 'خدمات تخصصی', en: 'Specialized Services' },
+                    fa: [
+                        'دفتر مدیریت پروژه مشاوره در مورد انواع پروژه‌های خاص ارائه می‌دهد.',
+                        'خدمات تخصصی دفتر مدیریت پروژه برای نیازهای منحصر به فرد سازمانی سفارشی‌سازی می‌شوند.',
+                        'کارشناسان موضوعی بخشی از پیشنهادات دفتر مدیریت پروژه هستند.',
+                        'دفتر مدیریت پروژه مشاوره فنی برای پروژه‌های پیچیده ارائه می‌دهد.',
+                        'خدمات تخصصی دفتر مدیریت پروژه مستند و قابل اندازه‌گیری هستند.',
+                        'دفتر مدیریت پروژه رویکرد خود را برای الزامات خاص صنعت تطبیق می‌دهد.',
+                        'دفتر مدیریت پروژه در صورت نیاز با کارشناسان خارجی همکاری می‌کند.',
+                        'خدمات تخصصی شامل پشتیبانی از نوآوری یا تحقیق و توسعه است.',
+                        'دفتر مدیریت پروژه تقاضا برای خدمات تخصصی خود را به طور منظم ارزیابی می‌کند.',
+                        'خدمات تخصصی معیارهای موفقیت واضحی دارند.'
+                    ],
+                    en: [
+                        'The PMO offers consulting on niche project types.',
+                        'Specialized PMO services are tailored to unique organizational needs.',
+                        'Subject matter experts are part of PMO offerings.',
+                        'The PMO provides technical advisory for complex projects.',
+                        'Specialized PMO services are documented and measurable.',
+                        'The PMO adapts its approach for industry-specific requirements.',
+                        'The PMO partners with external experts when needed.',
+                        'Specialized services include innovation or R&D support.',
+                        'The PMO evaluates demand for its specialized services regularly.',
+                        'Specialized services have clear success metrics.'
+                    ]
+                },
+                topic26: {
+                    name: { fa: 'تعامل با ذی‌اثران', en: 'Stakeholder Engagement' },
+                    fa: [
+                        'دفتر مدیریت پروژه، تمام ذی‌اثران مرتبط پروژه را در مراحل اولیه شناسایی می‌کند.',
+                        'نیازهای ذی‌اثران تحلیل و مستند می‌شوند.',
+                        'استراتژی‌های تعامل برای گروه‌های مختلف ذی‌اثران سفارشی‌سازی می‌شوند.',
+                        'دفتر مدیریت پروژه ارتباط منظم با ذی‌اثران را حفظ می‌کند.',
+                        'ذی‌اثران در نقاط تصمیم‌گیری کلیدی مشارکت دارند.',
+                        'بازخورد از ذی‌اثران بر تصمیمات پروژه تأثیر می‌گذارد.',
+                        'دفتر مدیریت پروژه سطوح رضایت ذی‌اثران را نظارت می‌کند.',
+                        'نقشه‌برداری ذی‌اثران با تکامل پروژه‌ها به‌روز می‌شود.',
+                        'دفتر مدیریت پروژه تضادهای ذی‌اثران را به سرعت حل می‌کند.',
+                        'اثربخشی تعامل با ذی‌اثران به طور دوره‌ای بازبینی می‌شود.'
+                    ],
+                    en: [
+                        'The PMO identifies all relevant project stakeholders early.',
+                        'Stakeholder needs are analyzed and documented.',
+                        'Engagement strategies are tailored to stakeholder groups.',
+                        'The PMO maintains regular communication with stakeholders.',
+                        'Stakeholders are involved in key decision points.',
+                        'Feedback from stakeholders influences project decisions.',
+                        'The PMO monitors stakeholder satisfaction levels.',
+                        'Stakeholder mapping is updated as projects evolve.',
+                        'The PMO resolves stakeholder conflicts promptly.',
+                        'Stakeholder engagement effectiveness is reviewed periodically.'
+                    ]
+                }
+            };
+            return defaultBank;
+        },
+        loadData() {
+            this.state.questionBank = this.generateDefaultData();
+        },
+        showScreen(screenId) {
+            document.querySelectorAll('#app-container > div').forEach(div => div.classList.replace('visible', 'hidden'));
+            document.getElementById(screenId).classList.replace('hidden', 'visible');
+            this.state.currentScreen = screenId;
+        },
+        updateUIText() {
+            const lang = this.state.currentLanguage;
+            const trans = this.i18n[lang];
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+            
+            document.getElementById('banner-content').innerHTML = trans.bannerHTML;
+            document.getElementById('start-quiz-btn').textContent = trans.startQuiz;
+            document.getElementById('quiz-title').textContent = trans.quizTitle;
+            document.getElementById('results-title').textContent = trans.resultsTitle;
+            document.getElementById('restart-btn').textContent = trans.restart;
+            document.getElementById('prev-btn').textContent = trans.prevButton;
+            document.getElementById('review-btn').textContent = trans.reviewButton;
+            document.getElementById('review-modal-title').textContent = trans.reviewModalTitle;
+            document.getElementById('results-topic-header').textContent = trans.resultsTopicHeader;
+            document.getElementById('results-score-header').textContent = trans.resultsScoreHeader;
+            document.getElementById('results-analysis-header').textContent = trans.resultsAnalysisHeader;
+            document.getElementById('save-results-btn').textContent = trans.saveResults;
+        },
+        selectLanguage(lang) { this.state.currentLanguage = lang; this.updateUIText(); this.showScreen('banner-screen'); },
+        startQuiz() {
+            this.state.answers = {}; this.generateQuiz();
+            if (this.state.quizQuestions.length > 0) {
+                this.state.currentQuestionIndex = 0; this.renderQuestionGrid();
+                this.displayCurrentQuestion(); this.showScreen('quiz-screen');
+            }
+        },
+        selectAnswer(score) {
+            const currentQuestion = this.state.quizQuestions[this.state.currentQuestionIndex];
+            this.state.answers[this.state.currentQuestionIndex] = { score: score, topic: currentQuestion.topic };
+            this.highlightSelectedOption(); this.updateQuestionGrid();
+            setTimeout(() => {
+                if (this.state.currentQuestionIndex < this.state.quizQuestions.length - 1) {
+                    this.nextQuestion();
+                }
+            }, 400);
+        },
+        nextQuestion() { if (this.state.currentQuestionIndex < this.state.quizQuestions.length - 1) { this.state.currentQuestionIndex++; this.displayCurrentQuestion(); } },
+        prevQuestion() { if (this.state.currentQuestionIndex > 0) { this.state.currentQuestionIndex--; this.displayCurrentQuestion(); } },
+        goToQuestion(index) { this.state.currentQuestionIndex = index; this.displayCurrentQuestion(); this.toggleReviewModal(); },
+        showResults() { 
+            this.toggleReviewModal(true); 
+            this.calculateAndShowResults();
+        },
+        showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.remove('hidden', 'opacity-0');
+            setTimeout(() => {
+                notification.classList.add('opacity-0');
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 300);
+            }, 3000);
+        },
+        async saveResultsAsImage() {
+            const elementToCapture = document.getElementById('results-capture-area');
+            const buttonsContainer = elementToCapture.nextElementSibling;
+            
+            buttonsContainer.style.display = 'none'; // Hide buttons to not include them in the image
+
+            try {
+                // Use a higher scale for better resolution
+                const canvas = await html2canvas(elementToCapture, {
+                    scale: 3,
+                    useCORS: true,
+                    backgroundColor: getComputedStyle(document.body).backgroundColor
+                });
+                
+                const trans = this.i18n[this.state.currentLanguage];
+                const now = new Date();
+                const date = now.getFullYear() + '-' + (now.getMonth() + 1).toString().padStart(2, '0') + '-' + now.getDate().toString().padStart(2, '0');
+                const time = now.getHours().toString().padStart(2, '0') + '-' + now.getMinutes().toString().padStart(2, '0') + '-' + now.getSeconds().toString().padStart(2, '0');
+                const filename = `${trans.resultsFilename}_${date}_${time}.jpg`;
+
+                const link = document.createElement('a');
+                link.download = filename;
+                // Convert canvas to JPG with high quality (1.0 is max)
+                link.href = canvas.toDataURL('image/jpeg', 1.0);
+                link.click();
+                
+                this.showNotification(trans.saveSuccessMessage.replace('{filename}', filename));
+
+            } catch (error) {
+                console.error('Error saving image:', error);
+            } finally {
+                buttonsContainer.style.display = 'flex'; // Show buttons again
+            }
+        },
+        calculateAndShowResults() {
+            const topicScores = {};
+            for (let i = 1; i <= this.config.totalTopics; i++) { topicScores[`topic${i}`] = 0; }
+            
+            Object.values(this.state.answers).forEach(answer => { 
+                if (answer && typeof answer.score === 'number' && answer.topic) {
+                    topicScores[answer.topic] += answer.score;
+                }
+            });
+
+            const tableBody = document.getElementById('results-table-body');
+            tableBody.innerHTML = '';
+            
+            const lang = this.state.currentLanguage;
+            const textAlignClass = lang === 'fa' ? 'text-right' : 'text-left';
+
+            const createRow = (topicName, score, analysis) => {
+                 const row = document.createElement('tr');
+                 row.className = analysis.class;
+                 row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-normal font-medium text-sm ${textAlignClass}">${topicName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-bold text-center text-sm">${score}</td>
+                    <td class="px-6 py-4 whitespace-normal text-sm ${textAlignClass}">${analysis.text}</td>
+                `;
+                tableBody.appendChild(row);
+            };
+
+            for (let i = 1; i <= this.config.totalTopics; i++) {
+                const topicKey = `topic${i}`;
+                const score = topicScores[topicKey] || 0;
+                
+                const topicName = this.state.questionBank[topicKey].name[lang];
+                const analysis = this.i18n[lang].analysisLevels.find(l => score >= l.range[0] && score <= l.range[1]) || { text: 'N/A', class: 'bg-gray-400' };
+
+                createRow(topicName, score, analysis);
+            }
+            this.showScreen('results-screen');
+        },
+        generateQuiz() {
+            const lang = this.state.currentLanguage; let selectedQuestions = [];
+            for (const topicKey in this.state.questionBank) {
+                const topicQuestions = this.state.questionBank[topicKey][lang] || [];
+                const shuffled = [...topicQuestions].sort(() => 0.5 - Math.random());
+                const questionsForTopic = shuffled.slice(0, this.config.questionsToSelectPerTopic)
+                    .map(text => ({ text, topic: topicKey }));
+                selectedQuestions.push(...questionsForTopic);
+            }
+            this.state.quizQuestions = selectedQuestions.sort(() => 0.5 - Math.random());
+        },
+        displayCurrentQuestion() {
+            const total = this.state.quizQuestions.length; const current = this.state.currentQuestionIndex + 1;
+            const question = this.state.quizQuestions[this.state.currentQuestionIndex];
+            document.getElementById('progress-indicator').textContent = this.i18n[this.state.currentLanguage].progress.replace('{current}', current).replace('{total}', total);
+            document.getElementById('question-text').textContent = question.text;
+            this.renderOptions(); this.highlightSelectedOption(); this.updateNavButtons(); this.updateQuestionGrid();
+        },
+        renderOptions() {
+            const optionsContainer = document.getElementById('options-container'); optionsContainer.innerHTML = '';
+            const options = this.i18n[this.state.currentLanguage].options;
+            options.sort((a, b) => b.score - a.score).forEach(option => {
+                const button = document.createElement('button');
+                button.className = "w-full text-center px-2 py-2 text-xs bg-gray-200 dark:bg-gray-600 font-semibold rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-all transform hover:scale-105";
+                button.textContent = `(${option.score}) ${option.text}`; button.dataset.score = option.score;
+                button.onclick = () => this.selectAnswer(option.score); optionsContainer.appendChild(button);
+            });
+        },
+        highlightSelectedOption() {
+            const currentAnswer = this.state.answers[this.state.currentQuestionIndex];
+            const allOptions = document.querySelectorAll('#options-container button');
+            if (currentAnswer) {
+                allOptions.forEach(btn => {
+                    const isSelected = parseInt(btn.dataset.score) === currentAnswer.score;
+                    btn.classList.toggle('option-selected', isSelected);
+                    btn.classList.toggle('option-dimmed', !isSelected);
+                });
+            } else {
+                allOptions.forEach(btn => {
+                    btn.classList.remove('option-selected');
+                    btn.classList.remove('option-dimmed');
+                });
+            }
+        },
+        updateNavButtons() {
+            const prevBtn = document.getElementById('prev-btn'); const nextBtn = document.getElementById('next-btn');
+            const trans = this.i18n[this.state.currentLanguage];
+            prevBtn.style.visibility = this.state.currentQuestionIndex === 0 ? 'hidden' : 'visible';
+            if (this.state.currentQuestionIndex === this.state.quizQuestions.length - 1) {
+                nextBtn.textContent = trans.resultsButton; nextBtn.onclick = () => this.showResults();
+            } else { nextBtn.textContent = trans.nextButton; nextBtn.onclick = () => this.nextQuestion(); }
+        },
+        renderQuestionGrid() {
+            const gridContainer = document.getElementById('question-nav-grid'); gridContainer.innerHTML = '';
+            for (let i = 0; i < this.state.quizQuestions.length; i++) {
+                const item = document.createElement('div'); item.id = `nav-item-${i}`;
+                item.className = 'nav-item w-10 h-10 flex items-center justify-center font-bold rounded-md cursor-pointer';
+                item.textContent = i + 1; item.onclick = () => this.goToQuestion(i); gridContainer.appendChild(item);
+            }
+        },
+        updateQuestionGrid() {
+            for (let i = 0; i < this.state.quizQuestions.length; i++) {
+                const item = document.getElementById(`nav-item-${i}`);
+                if (item) {
+                    item.className = 'nav-item w-10 h-10 flex items-center justify-center font-bold rounded-md cursor-pointer';
+                    if (this.state.currentQuestionIndex === i) { item.classList.add('status-current'); }
+                    else if (this.state.answers[i] !== undefined) { item.classList.add('status-answered'); }
+                    else { item.classList.add('status-unanswered'); }
+                }
+            }
+        },
+        toggleReviewModal(forceClose = false) {
+            const modal = document.getElementById('review-modal');
+            if (forceClose || !modal.classList.contains('hidden')) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+            else { this.updateQuestionGrid(); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        }
+    };
+    document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
